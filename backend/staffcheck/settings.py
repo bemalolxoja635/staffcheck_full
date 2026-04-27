@@ -65,26 +65,36 @@ TEMPLATES = [
 WSGI_APPLICATION = 'staffcheck.wsgi.application'
 
 # ── Database ──────────────────────────────────────────────────────────────────
-_db_engine = config('DB_ENGINE', default='postgresql')
+import dj_database_url
 
-if _db_engine == 'sqlite3':
+_db_url = config('DATABASE_URL', default='')
+
+if _db_url:
     DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
+        'default': dj_database_url.config(default=_db_url, conn_max_age=600)
     }
 else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': config('DB_NAME', default='staffcheck'),
-            'USER': config('DB_USER', default='postgres'),
-            'PASSWORD': config('DB_PASS', default=''),
-            'HOST': config('DB_HOST', default='localhost'),
-            'PORT': config('DB_PORT', default='5432'),
+    _db_engine = config('DB_ENGINE', default='sqlite3')
+    if _db_engine == 'sqlite3':
+        # Vercel-da sqlite3 yozish uchun /tmp dan foydalanamiz
+        _db_path = '/tmp/db.sqlite3' if os.environ.get('VERCEL') else BASE_DIR / 'db.sqlite3'
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': _db_path,
+            }
         }
-    }
+    else:
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': config('DB_NAME', default='staffcheck'),
+                'USER': config('DB_USER', default='postgres'),
+                'PASSWORD': config('DB_PASS', default=''),
+                'HOST': config('DB_HOST', default='localhost'),
+                'PORT': config('DB_PORT', default='5432'),
+            }
+        }
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 AUTH_USER_MODEL = 'users.User'
