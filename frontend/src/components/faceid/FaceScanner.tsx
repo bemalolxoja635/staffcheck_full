@@ -157,7 +157,7 @@ export default function FaceScanner({ descriptors, onResult }: FaceScannerProps)
 
       try {
         const dets = await faceapi
-          .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 }))
+          .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.4 }))
           .withFaceLandmarks()
           .withFaceDescriptors()
 
