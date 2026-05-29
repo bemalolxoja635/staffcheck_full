@@ -30,6 +30,12 @@ export const authApi = {
 
   saveFace: (user_id: number, face_descriptors: number[][]) =>
     client.post('/api/auth/save-face/', { user_id, face_descriptors }),
+
+  getTasks: () =>
+    client.get<import('@/types').Task[]>('/api/auth/me/tasks/'),
+
+  updateTask: (id: number, is_completed: boolean) =>
+    client.patch(`/api/auth/me/tasks/${id}/`, { is_completed }),
 }
 
 // ── Users (Admin) ─────────────────────────────────────────────────────────────
@@ -61,11 +67,14 @@ export const usersApi = {
 
 // ── Attendance ────────────────────────────────────────────────────────────────
 export const attendanceApi = {
-  faceCheckin: (user_id: number) =>
-    client.post<AttendanceResult>('/api/attendance/face/', { user_id }),
+  getChallenge: () =>
+    client.get<{ challenge: string }>('/api/attendance/challenge/'),
 
-  qrCheckin: (qr_token: string) =>
-    client.post<AttendanceResult>('/api/attendance/qr/', { qr_token }),
+  faceCheckin: (user_id: number, lat: number, lng: number, challenge: string) =>
+    client.post<AttendanceResult>('/api/attendance/face/', { user_id, lat, lng, challenge }),
+
+  qrCheckin: (qr_token: string, lat: number, lng: number) =>
+    client.post<AttendanceResult>('/api/attendance/qr/', { qr_token, lat, lng }),
 
   list: (params?: Record<string, string>) =>
     client.get<{ results: Attendance[]; count: number }>('/api/attendance/list/', { params }),

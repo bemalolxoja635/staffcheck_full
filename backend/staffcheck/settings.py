@@ -1,11 +1,23 @@
 """
 StaffCheck - Django REST Framework Settings
 PostgreSQL + JWT + CORS
+Premium 4K UI ready
 """
 import os
 from pathlib import Path
 from datetime import timedelta
 from decouple import config
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
+
+SENTRY_DSN = config('SENTRY_DSN', default='')
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[DjangoIntegration()],
+        traces_sample_rate=1.0,
+        send_default_pii=True
+    )
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -26,6 +38,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'django_filters',
+    'drf_spectacular',
     # Local apps
     'apps.users',
     'apps.attendance',
@@ -122,9 +135,8 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
-
-# ── JWT ───────────────────────────────────────────────────────────────────────
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=8),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
@@ -132,6 +144,9 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
+
+
+
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
 CORS_ALLOWED_ORIGINS = config(
@@ -141,11 +156,21 @@ CORS_ALLOWED_ORIGINS = config(
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = config('DEBUG', default=True, cast=bool)
 
+# Security hardening
+SECURE_HSTS_SECONDS = 31536000  # 1 year
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+X_FRAME_OPTIONS = 'DENY'
+
 # ── Internationalization ───────────────────────────────────────────────────────
 LANGUAGE_CODE = 'uz'
 TIME_ZONE = 'Asia/Tashkent'
 USE_I18N = True
-USE_TZ = True
+USE_TZ = False
 
 # ── Static & Media ────────────────────────────────────────────────────────────
 STATIC_URL = '/static/'
@@ -162,13 +187,27 @@ STATICFILES_DIRS = [
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # ── Telegram ──────────────────────────────────────────────────────────────────
-TELEGRAM_BOT_TOKEN = config(
-    'TELEGRAM_BOT_TOKEN',
-    default='8224034084:AAGWIDEIARGrL5lyPc8TMpjOroKvwSxifLk'
-)
+TELEGRAM_BOT_TOKEN = config('TELEGRAM_BOT_TOKEN', default='')
 GEMINI_API_KEY = config('GEMINI_API_KEY', default='')
 
-# ── Security ──────────────────────────────────────────────────────────────────
-SECURE_BROWSER_XSS_FILTER = True
-X_FRAME_OPTIONS = 'DENY'
-SECURE_CONTENT_TYPE_NOSNIFF = True
+# ── Geolocation (Farg'ona davlat universiteti tabiiy fanlar fakulteti) ─────────
+OFFICE_LAT = config('OFFICE_LAT', default=40.3864, cast=float)
+OFFICE_LNG = config('OFFICE_LNG', default=71.7820, cast=float)
+ALLOWED_DISTANCE_METERS = config('ALLOWED_DISTANCE_METERS', default=500, cast=int)
+
+# ── Validation ────────────────────────────────────────────────────────────────
+REQUIRED_ENV_VARS = [
+    ('SECRET_KEY', SECRET_KEY),
+    ('TELEGRAM_BOT_TOKEN', TELEGRAM_BOT_TOKEN),
+    ('OFFICE_LAT', OFFICE_LAT),
+    ('OFFICE_LNG', OFFICE_LNG),
+]
+
+# Tizim ishga tushganda muhim o'zgaruvchilarni tekshiramiz
+for var_name, value in REQUIRED_ENV_VARS:
+    if not value or value == '0.0' or value == 0.0:
+        if not DEBUG:
+            raise ValueError(f"CRITICAL: {var_name} environment variable is missing or empty!")
+        else:
+            print(f"WARNING: {var_name} is missing. System may not work correctly.")
+

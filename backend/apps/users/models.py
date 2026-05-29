@@ -43,7 +43,8 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     # FaceID: [[128 floats], [128 floats], ...] — 5 ta descriptor
     face_descriptors = models.JSONField(null=True, blank=True)
-
+    daily_rate = models.DecimalField(max_digits=12, decimal_places=2, default=150000.00) # Kunlik ish haqi masalan 150 000 so'm
+    
     avatar      = models.TextField(blank=True, null=True)   # base64 yoki URL
     telegram_id = models.CharField(max_length=50, blank=True)
     qr_token    = models.CharField(max_length=64, unique=True, null=True, blank=True)
@@ -89,5 +90,37 @@ class ActionLog(models.Model):
         db_table = 'action_logs'
         ordering = ['-created_at']
 
+
     def __str__(self):
         return f"{self.action} — {self.created_at:%Y-%m-%d %H:%M}"
+
+
+class Task(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Kutilmoqda'),
+        ('in_progress', 'Bajarilmoqda'),
+        ('completed', 'Tugallangan'),
+        ('canceled', 'Bekor qilingan'),
+    ]
+    PRIORITY_CHOICES = [
+        ('low', 'Past'),
+        ('medium', 'Oʻrta'),
+        ('high', 'Yuqori'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tasks')
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='medium')
+    due_date = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'tasks'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.title} ({self.user.username})"
+

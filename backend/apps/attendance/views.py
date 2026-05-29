@@ -4,12 +4,18 @@ from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.core.signing import TimestampSigner, SignatureExpired, BadSignature
+from django_ratelimit.decorators import ratelimit
+from django.utils.decorators import method_decorator
 
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from apps.settings_app.models import Setting
-from apps.users.models import User
-from apps.users.utils import send_telegram
+from apps.users.models import User, ActionLog
+from apps.users.utils import send_telegram, get_client_ip
 from .models import Attendance
 from .serializers import AttendanceSerializer
+
+signer = TimestampSigner()
 
 
 # ── Helper ────────────────────────────────────────────────────────────────────
@@ -28,10 +34,60 @@ def determine_status(now_time, start_time_str: str, late_minutes: int) -> str:
 
 
 # ── FaceID Attendance ─────────────────────────────────────────────────────────
+class AttendanceChallengeView(APIView):
+    """
+    Frontend uchun vaqtinchalik imzolangan token generatsiya qiladi.
+    Bu token 1 daqiqa amal qiladi.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    @extend_schema(
+        summary="FaceID uchun challenge token olish",
+        description="Har bir FaceID urinishi uchun vaqtinchalik (1 daqiqa) token generatsiya qiladi.",
+        responses={200: {"type": "object", "properties": {"challenge": {"type": "string"}}}}
+    )
+    @method_decorator(ratelimit(key='ip', rate='20/m', method='GET', block=True), name='get')
+    def get(self, request):
+        token = signer.sign('face-id-session')
+        return Response({'challenge': token})
+
+
+@method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True), name='post')
 class FaceAttendanceView(APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        summary="FaceID orqali davomat",
+        description="Yuz tanilgandan so'ng xodimning ID si va challenge tokeni bilan yuboriladi.",
+        request={
+            "application/json": {
+                "type": "object",
+                "properties": {
+                    "user_id": {"type": "integer"},
+                    "challenge": {"type": "string"},
+                    "lat": {"type": "number"},
+                    "lng": {"type": "number"}
+                },
+                "required": ["user_id", "challenge", "lat", "lng"]
+            }
+        }
+    )
     def post(self, request):
+        # 1. Token (challenge) tekshiruvi
+        challenge = request.data.get('challenge')
+        if not challenge:
+            return Response({'status': 'error', 'message': 'Xavfsizlik tokeni (challenge) yo\'q'}, status=403)
+        
+        try:
+            # 60 soniya ichida ishlatilishi kerak
+            signer.unsign(challenge, max_age=60)
+        except SignatureExpired:
+            ActionLog.objects.create(action='face_checkin_fail', details='Token expired', ip_address=get_client_ip(request))
+            return Response({'status': 'error', 'message': 'Token vaqti tugagan, iltimos qaytadan urinib ko\'ring'}, status=403)
+        except BadSignature:
+            ActionLog.objects.create(action='face_checkin_fail', details='Bad Signature', ip_address=get_client_ip(request))
+            return Response({'status': 'error', 'message': 'Xavfsizlik xatosi (Bad Token)'}, status=403)
+
         user_id = request.data.get('user_id')
         if not user_id:
             return Response(
@@ -42,6 +98,7 @@ class FaceAttendanceView(APIView):
         try:
             user = User.objects.get(id=user_id, status='active')
         except User.DoesNotExist:
+            ActionLog.objects.create(action='face_checkin_fail', details=f'User not found: {user_id}', ip_address=get_client_ip(request))
             return Response(
                 {'status': 'error', 'message': 'Xodim topilmadi yoki bloklangan'},
                 status=status.HTTP_404_NOT_FOUND,
@@ -50,6 +107,40 @@ class FaceAttendanceView(APIView):
         today    = timezone.now().date()
         now_time = timezone.now().time()
         start_str, late_min = get_work_settings()
+
+        # Geolocation tekshiruvi
+        lat = request.data.get('lat')
+        lng = request.data.get('lng')
+
+        if not lat or not lng:
+            return Response(
+                {'status': 'error', 'message': 'Geolokatsiya ma\'lumotlari kerak.'},
+                status=400
+            )
+        
+        from django.conf import settings
+        from apps.users.utils import calculate_distance
+        
+        dist = calculate_distance(float(lat), float(lng), settings.OFFICE_LAT, settings.OFFICE_LNG)
+        
+        if dist > settings.ALLOWED_DISTANCE_METERS:
+            if user.telegram_id:
+                send_telegram(
+                    user.telegram_id,
+                    f"🛑 <b>XATO! Masofa uzoq.</b>\n\n"
+                    f"Siz ish joyidan {int(dist)} metr uzoqdasiz.\n"
+                    f"Ishga kirish uchun 500 metr masofada bo'lishingiz shart."
+                )
+            ActionLog.objects.create(
+                user=user, 
+                action='face_checkin_fail', 
+                details=f'Masofa uzoq ({int(dist)}m). IP: {get_client_ip(request)}', 
+                ip_address=get_client_ip(request)
+            )
+            return Response({
+                'status': 'error', 
+                'message': f'Siz ish joyidan juda uzoqdasiz ({int(dist)}m). 500m radiusda bo\'lishingiz kerak.'
+            }, status=403)
 
         attendance, created = Attendance.objects.get_or_create(
             user=user, date=today,
@@ -67,9 +158,10 @@ class FaceAttendanceView(APIView):
             if user.telegram_id:
                 send_telegram(
                     user.telegram_id,
-                    f"{emoji} <b>FaceID Davomat (Kelish)</b>\n\n"
+                    f"{emoji} <b>FaceID Davomat (Muvaffaqiyatli)</b>\n\n"
                     f"👤 Xodim: {user.get_full_name()}\n"
                     f"🕒 Vaqt: {now_time.strftime('%H:%M:%S')}\n"
+                    f"📍 Masofa: {int(dist)}m (Ruxsat etilgan)\n"
                     f"📊 Holat: {'Kechikdi' if att_status == 'late' else 'Vaqtida'}",
                 )
 
@@ -108,9 +200,14 @@ class FaceAttendanceView(APIView):
 
 
 # ── QR Attendance ─────────────────────────────────────────────────────────────
+@method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True), name='post')
 class QRAttendanceView(APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        summary="QR-kod orqali davomat",
+        description="Xodimning shaxsiy QR tokini orqali davomat qilish."
+    )
     def post(self, request):
         qr_token = request.data.get('qr_token', '').strip()
         if not qr_token:
@@ -125,6 +222,31 @@ class QRAttendanceView(APIView):
         now_time = timezone.now().time()
         start_str, late_min = get_work_settings()
 
+        # Geolocation tekshiruvi
+        lat = request.data.get('lat')
+        lng = request.data.get('lng')
+
+        if not lat or not lng:
+            return Response({'status': 'error', 'message': 'Geolokatsiya ma\'lumotlari kerak.'}, status=400)
+        
+        from django.conf import settings
+        from apps.users.utils import calculate_distance
+        
+        dist = calculate_distance(float(lat), float(lng), settings.OFFICE_LAT, settings.OFFICE_LNG)
+        
+        if dist > settings.ALLOWED_DISTANCE_METERS:
+            if user.telegram_id:
+                send_telegram(
+                    user.telegram_id,
+                    f"🛑 <b>XATO! Masofa uzoq (QR).</b>\n\n"
+                    f"Siz ish joyidan {int(dist)} metr uzoqdasiz.\n"
+                    f"QR orqali kirish uchun 500 metr masofada bo'lishingiz shart."
+                )
+            return Response({
+                'status': 'error', 
+                'message': f'Siz ish joyidan juda uzoqdasiz ({int(dist)}m).'
+            }, status=403)
+
         attendance, created = Attendance.objects.get_or_create(
             user=user, date=today,
             defaults={'check_in': now_time, 'method': 'qr'},
@@ -134,6 +256,16 @@ class QRAttendanceView(APIView):
             att_status = determine_status(now_time, start_str, late_min)
             attendance.att_status = att_status
             attendance.save(update_fields=['att_status'])
+
+            if user.telegram_id:
+                send_telegram(
+                    user.telegram_id,
+                    f"✅ <b>QR Davomat (Muvaffaqiyatli)</b>\n\n"
+                    f"👤 Xodim: {user.get_full_name()}\n"
+                    f"🕒 Vaqt: {now_time.strftime('%H:%M:%S')}\n"
+                    f"📍 Masofa: {int(dist)}m"
+                )
+
             msg_str = "Xush kelibsiz! (QR)" if att_status == 'on_time' else "Kechikdingiz! (QR)"
             return Response({
                 'status': 'success', 'type': 'check_in',

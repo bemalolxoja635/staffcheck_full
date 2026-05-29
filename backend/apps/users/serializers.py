@@ -1,7 +1,7 @@
 import re
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from .models import User
+from .models import User, Task
 
 
 # ── Register ──────────────────────────────────────────────────────────────────
@@ -73,9 +73,9 @@ class UserSerializer(serializers.ModelSerializer):
             'phone', 'role', 'status', 'position',
             'birth_date', 'birth_place',
             'avatar', 'telegram_id', 'qr_token',
-            'has_face', 'created_at',
+            'has_face', 'created_at', 'daily_rate',
         ]
-        read_only_fields = ['id', 'created_at', 'qr_token']
+        read_only_fields = ['id', 'created_at', 'qr_token', 'role']
 
     def get_full_name(self, obj):
         return obj.get_full_name()
@@ -111,3 +111,10 @@ class ChangePasswordSerializer(serializers.Serializer):
         if not re.search(r'[A-Za-z]', value) or not re.search(r'[0-9]', value):
             raise serializers.ValidationError("Parol harf va raqam o'z ichiga olishi kerak.")
         return value
+
+
+# ── Tasks ───────────────────────────────────────────────────────────────────
+class TaskSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = Task
+        fields = '__all__'

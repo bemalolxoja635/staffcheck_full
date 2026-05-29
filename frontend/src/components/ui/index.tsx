@@ -105,4 +105,6 @@ function Badge({ className, variant = 'default', ...props }: BadgeProps) {
   )
 }
 
-export { Input, Card, CardHeader, CardTitle, CardContent, CardFooter, Badge }
+import { Button, buttonVariants } from './button'
+
+export { Input, Card, CardHeader, CardTitle, CardContent, CardFooter, Badge, Button, buttonVariants }

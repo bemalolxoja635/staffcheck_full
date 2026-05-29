@@ -11,6 +11,7 @@ export default function ScannerPage() {
   const [result,    setResult]    = useState<AttendanceResult | null>(null)
   const [scanning,  setScanning]  = useState(false)
   const [lastScan,  setLastScan]  = useState<string>('')
+  const [showSimulate, setShowSimulate] = useState(false)
   const cooldownRef = useRef(false)
 
   useEffect(() => {
@@ -64,18 +65,45 @@ export default function ScannerPage() {
     cooldownRef.current = true
     setLastScan(qrToken)
 
-    try {
-      const res = await attendanceApi.qrCheckin(qrToken)
-      setResult(res.data)
-    } catch {
-      setResult({ status: 'error', message: "Server bilan bog'lanishda xatolik" })
+    // Geolokatsiya olish
+    const performCheckin = async (latitude: number, longitude: number) => {
+      try {
+        const res = await attendanceApi.qrCheckin(qrToken, latitude, longitude)
+        setResult(res.data)
+        if (res.data.status === 'success') setShowSimulate(false)
+      } catch (err: any) {
+        const msg = err.response?.data?.message || "Server bilan bog'lanishda xatolik"
+        setResult({ status: 'error', message: msg })
+      }
     }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => performCheckin(pos.coords.latitude, pos.coords.longitude),
+      (err) => {
+        if (err.code !== 1) console.error("[Scanner] Geolocation error:", err)
+        setResult({ status: 'error', message: "Geolokatsiyaga ruxsat zarur" })
+        setShowSimulate(true)
+      },
+      { enableHighAccuracy: true, timeout: 5000 }
+    )
 
     // 3 soniyadan keyin qayta skanerlash
     setTimeout(() => {
       cooldownRef.current = false
       setResult(null)
-    }, 3000)
+    }, 5000) // 5s cooldown for better visibility
+  }
+
+  const handleSimulate = async () => {
+    if (!lastScan) return
+    setResult(null)
+    try {
+      const res = await attendanceApi.qrCheckin(lastScan, 40.3864, 71.7820)
+      setResult(res.data)
+      if (res.data.status === 'success') setShowSimulate(false)
+    } catch (err: any) {
+      setResult({ status: 'error', message: "Simulyatsiya xatosi" })
+    }
   }
 
   return (
@@ -117,22 +145,33 @@ export default function ScannerPage() {
 
           {/* Result */}
           {result && (
-            <div className={`p-4 rounded-2xl flex items-center gap-3 animate-fade-in ${
+            <div className={`p-4 rounded-2xl flex flex-col gap-3 animate-fade-in ${
               result.status === 'success'
                 ? 'bg-emerald-50 border border-emerald-200'
                 : 'bg-red-50 border border-red-200'
             }`}>
-              {result.status === 'success'
-                ? <CheckCircle className="w-8 h-8 text-emerald-500 shrink-0" />
-                : <XCircle className="w-8 h-8 text-red-500 shrink-0" />
-              }
-              <div>
-                {result.user && <p className="font-bold">{result.user}</p>}
-                {result.position && <p className="text-sm text-muted-foreground">{result.position}</p>}
-                <p className={`text-sm font-medium ${result.status === 'success' ? 'text-emerald-700' : 'text-red-700'}`}>
-                  {result.message}
-                </p>
+              <div className="flex items-center gap-3">
+                {result.status === 'success'
+                  ? <CheckCircle className="w-8 h-8 text-emerald-500 shrink-0" />
+                  : <XCircle className="w-8 h-8 text-red-500 shrink-0" />
+                }
+                <div>
+                  {result.user && <p className="font-bold">{result.user}</p>}
+                  {result.position && <p className="text-sm text-muted-foreground">{result.position}</p>}
+                  <p className={`text-sm font-medium ${result.status === 'success' ? 'text-emerald-700' : 'text-red-700'}`}>
+                    {result.message}
+                  </p>
+                </div>
               </div>
+              
+              {showSimulate && result.status === 'error' && (
+                <button
+                  onClick={handleSimulate}
+                  className="mt-2 text-xs bg-primary text-white py-2.5 rounded-xl font-bold shadow-lg hover:bg-primary/90 transition-all active:scale-95"
+                >
+                  📍 Joylashuvni tasdiqlash va kirish
+                </button>
+              )}
             </div>
           )}
 

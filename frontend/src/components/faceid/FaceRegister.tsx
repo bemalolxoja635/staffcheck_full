@@ -69,14 +69,14 @@ export default function FaceRegister({ onCapture }: FaceRegisterProps) {
     clearInterval(intervalRef.current)
     const video  = videoRef.current!
     const canvas = canvasRef.current!
-    faceapi.matchDimensions(canvas, { width: video.offsetWidth, height: video.offsetHeight })
+    faceapi.matchDimensions(canvas, { width: video.videoWidth || 640, height: video.videoHeight || 480 })
 
     intervalRef.current = setInterval(async () => {
       const dets = await faceapi
         .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.5 }))
         .withFaceLandmarks()
         .withFaceDescriptors()
-      const resized = faceapi.resizeResults(dets, { width: video.offsetWidth, height: video.offsetHeight })
+      const resized = faceapi.resizeResults(dets, { width: video.videoWidth || 640, height: video.videoHeight || 480 })
       canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height)
       if (resized.length > 0) {
         faceapi.draw.drawDetections(canvas, resized)

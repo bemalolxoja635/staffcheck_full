@@ -14,7 +14,18 @@ export interface User {
   telegram_id: string
   qr_token: string | null
   has_face: boolean
+  daily_rate: number
   created_at: string
+}
+
+export interface Task {
+  id: number
+  user: number
+  title: string
+  description: string
+  is_completed: boolean
+  created_at: string
+  deadline: string | null
 }
 
 export interface Attendance {

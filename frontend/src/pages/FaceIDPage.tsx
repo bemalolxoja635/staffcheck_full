@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Shield } from 'lucide-react'
-import FaceScanner from '@/components/faceid/FaceScanner'
+import { ArrowLeft, Shield, Loader2 } from 'lucide-react'
+const FaceScanner = lazy(() => import('@/components/faceid/FaceScanner'))
 import { authApi } from '@/api'
 import type { FaceDescriptor, AttendanceResult } from '@/types'
 import { formatTime } from '@/lib/utils'
@@ -50,10 +50,17 @@ export default function FaceIDPage() {
               <p className="text-sm text-muted-foreground">Yuklanmoqda...</p>
             </div>
           ) : (
-            <FaceScanner
-              descriptors={descriptors}
-              onResult={setLastResult}
-            />
+            <Suspense fallback={
+              <div className="flex flex-col items-center gap-4 py-16">
+                <Loader2 className="w-12 h-12 text-primary animate-spin" />
+                <p className="text-sm text-muted-foreground">Biometrik modul yuklanmoqda...</p>
+              </div>
+            }>
+              <FaceScanner
+                descriptors={descriptors}
+                onResult={setLastResult}
+              />
+            </Suspense>
           )}
         </div>
 

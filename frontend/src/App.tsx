@@ -1,5 +1,7 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth'
+import { useThemeStore } from '@/store/theme'
 
 // Pages
 import Landing     from '@/pages/Landing'
@@ -39,8 +41,18 @@ function RequireUser({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const { theme } = useThemeStore()
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+  }, [theme])
+
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Routes>
         {/* Public */}
         <Route path="/"        element={<Landing />} />

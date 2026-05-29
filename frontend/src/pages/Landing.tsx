@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
-import { Shield, Camera, QrCode, BarChart3, Monitor, ArrowRight, CheckCircle } from 'lucide-react'
+import { Shield, Camera, QrCode, BarChart3, Monitor, ArrowRight, CheckCircle, Sun, Moon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useThemeStore } from '@/store/theme'
 
 const features = [
   { icon: Camera,    title: 'FaceID Davomat',    desc: 'Biometrik yuz tanish texnologiyasi bilan tezkor va xavfsiz davomat' },
@@ -17,6 +18,7 @@ const stats = [
 ]
 
 export default function Landing() {
+  const { theme, toggleTheme } = useThemeStore()
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
       {/* Orbs */}
@@ -32,6 +34,9 @@ export default function Landing() {
           <span className="font-bold text-lg">StaffCheck</span>
         </div>
         <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={toggleTheme} className="rounded-xl">
+             {theme === 'dark' ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-slate-700" />}
+          </Button>
           <Link to="/login">
             <Button variant="outline" size="sm">Kirish</Button>
           </Link>
@@ -58,21 +63,21 @@ export default function Landing() {
         </p>
         <div className="flex flex-wrap items-center justify-center gap-4 animate-slide-up">
           <Link to="/faceid">
-            <Button size="xl" className="shadow-2xl shadow-primary/30">
-              <Camera className="w-5 h-5" />
+            <Button size="xl" className="shadow-2xl shadow-primary/30 transition-all duration-500 hover:scale-110 active:scale-95 group">
+              <Camera className="w-5 h-5 group-hover:rotate-12 transition-transform" />
               FaceID orqali davomat
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Button>
           </Link>
           <Link to="/scanner">
-            <Button size="xl" variant="outline">
-              <QrCode className="w-5 h-5" />
+            <Button size="xl" variant="outline" className="transition-all duration-500 hover:scale-105 active:scale-95 hover:bg-primary/5 group">
+              <QrCode className="w-5 h-5 group-hover:scale-110 transition-transform" />
               QR-kod Skaner
             </Button>
           </Link>
           <Link to="/login">
-            <Button size="xl" variant="outline">
-              <Shield className="w-5 h-5" />
+            <Button size="xl" variant="outline" className="transition-all duration-500 hover:scale-105 active:scale-95 hover:bg-primary/5 group">
+              <Shield className="w-5 h-5 group-hover:text-primary transition-colors" />
               Boshqaruv Paneli
             </Button>
           </Link>
@@ -82,10 +87,15 @@ export default function Landing() {
       {/* Stats */}
       <section className="relative z-10 max-w-4xl mx-auto px-6 mb-16">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {stats.map(({ value, label }) => (
-            <div key={label} className="glass rounded-2xl p-5 text-center hover:-translate-y-1 transition-transform">
-              <p className="text-3xl font-extrabold gradient-text mb-1">{value}</p>
-              <p className="text-sm text-muted-foreground">{label}</p>
+          {stats.map(({ value, label }, idx) => (
+            <div 
+              key={label} 
+              className={`glass rounded-2xl p-5 text-center transition-all duration-500 hover:scale-105 hover:shadow-[0_0_30px_-5px_hsl(var(--primary)/0.4)] ${
+                idx % 2 === 0 ? 'animate-float-slow' : 'animate-float-delayed'
+              }`}
+            >
+              <p className="text-3xl font-extrabold gradient-text mb-1 glow-4k">{value}</p>
+              <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider text-[10px]">{label}</p>
             </div>
           ))}
         </div>
@@ -93,18 +103,21 @@ export default function Landing() {
 
       {/* Features */}
       <section className="relative z-10 max-w-5xl mx-auto px-6 pb-20">
-        <h2 className="text-3xl font-bold text-center mb-12">
-          Asosiy <span className="gradient-text">Imkoniyatlar</span>
+        <h2 className="text-3xl font-bold text-center mb-12 animate-fade-in">
+          Asosiy <span className="gradient-text glow-4k">Imkoniyatlar</span>
         </h2>
         <div className="grid md:grid-cols-2 gap-6">
           {features.map(({ icon: Icon, title, desc }) => (
-            <div key={title} className="glass rounded-2xl p-6 flex gap-4 hover:-translate-y-1 transition-all duration-300 hover:shadow-xl">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                <Icon className="w-6 h-6 text-primary" />
+            <div 
+              key={title} 
+              className="glass rounded-2xl p-6 flex gap-4 transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl group border border-primary/10 hover:border-primary/40 animate-slide-up"
+            >
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500 shadow-inner">
+                <Icon className="w-6 h-6 text-primary moving-icon" />
               </div>
               <div>
-                <h3 className="font-semibold mb-1">{title}</h3>
-                <p className="text-sm text-muted-foreground">{desc}</p>
+                <h3 className="font-bold mb-1 text-lg group-hover:text-primary transition-colors">{title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
               </div>
             </div>
           ))}

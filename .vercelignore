@@ -1,0 +1,10 @@
+StaffCheckMobile/
+.git/
+.vscode/
+.idea/
+docker-compose.yml
+README.md
+backend/venv/
+backend/.venv/
+frontend/node_modules/
+railway.toml

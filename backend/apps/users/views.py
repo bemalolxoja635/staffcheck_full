@@ -5,12 +5,14 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+from drf_spectacular.utils import extend_schema
 
-from .models import ActionLog, User
+from .models import ActionLog, User, Task
 from .permissions import IsAdmin
 from .serializers import (
     ChangePasswordSerializer, LoginSerializer,
     RegisterSerializer, UserSerializer, UserUpdateSerializer,
+    TaskSerializer,
 )
 from .utils import get_client_ip
 from .ai_utils import ask_gemini, analyze_image_with_gemini
@@ -21,6 +23,11 @@ class RegisterView(generics.CreateAPIView):
     serializer_class   = RegisterSerializer
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        summary="Yangi xodimni ro'yxatdan o'tkazish",
+        description="Faqat ma'lumotlar saqlanadi, tizimga kirish uchun admin tasdiqlashi shart.",
+        responses={201: {"type": "object", "properties": {"message": {"type": "string"}}}}
+    )
     def create(self, request, *args, **kwargs):
         s = self.get_serializer(data=request.data)
         s.is_valid(raise_exception=True)
@@ -36,10 +43,20 @@ class RegisterView(generics.CreateAPIView):
         )
 
 
+from django_ratelimit.decorators import ratelimit
+from django.utils.decorators import method_decorator
+
 # ── Login ─────────────────────────────────────────────────────────────────────
+@method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True), name='post')
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        summary="Tizimga kirish",
+        description="Login va parol orqali JWT token olish. Brute-force himoyasi mavjud.",
+        request=LoginSerializer,
+        responses={200: {"type": "object", "properties": {"access": {"type": "string"}, "refresh": {"type": "string"}, "user": {"type": "object"}}}}
+    )
     def post(self, request):
         ip = get_client_ip(request)
 
@@ -103,9 +120,11 @@ class LogoutView(APIView):
 
 # ── Me (o'z profili) ──────────────────────────────────────────────────────────
 class MeView(APIView):
+    @extend_schema(summary="Joriy foydalanuvchi ma'lumotlari")
     def get(self, request):
         return Response(UserSerializer(request.user).data)
 
+    @extend_schema(summary="Profilni tahrirlash", request=UserUpdateSerializer)
     def patch(self, request):
         s = UserSerializer(request.user, data=request.data, partial=True)
         s.is_valid(raise_exception=True)
@@ -302,3 +321,23 @@ class AIAnalyticsView(APIView):
 
         prediction = ask_gemini(prompt)
         return Response({'prediction': prediction})
+
+
+# ── Tasks ───────────────────────────────────────────────────────────────────
+class TaskListView(generics.ListAPIView):
+    serializer_class   = TaskSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Task.objects.filter(user=self.request.user)
+
+
+class TaskUpdateView(APIView):
+    def patch(self, request, pk):
+        try:
+            task = Task.objects.get(pk=pk, user=request.user)
+            task.is_completed = request.data.get('is_completed', task.is_completed)
+            task.save()
+            return Response({'status': 'success', 'is_completed': task.is_completed})
+        except Task.DoesNotExist:
+            return Response({'error': 'Topilmadi'}, status=status.HTTP_404_NOT_FOUND)

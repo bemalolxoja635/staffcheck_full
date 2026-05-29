@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "StaffCheckMobile",
+    "slug": "staffcheck",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.staffcheck.app",
+      "minSdkVersion": 26,
+      "permissions": [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "VIBRATE",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "plugins": [
+      ["react-native-vision-camera", { "enableCodeScanner": false, "enableFaceDetector": true }],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Davomat uchun joylashuv kerak"
+        }
+      ],
+      "expo-asset"
+    ],
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "1cfc3331-35d2-404c-baa4-2858ba0beccb"
+      }
+    },
+    "owner": "abdulhayevs-organization"
+  }
+}

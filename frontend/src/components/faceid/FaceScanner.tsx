@@ -20,12 +20,14 @@ export default function FaceScanner({ descriptors, onResult }: FaceScannerProps)
   const livenessRef     = useRef<'IDLE' | 'BLINK' | 'VERIFIED'>('IDLE')
   const currentUserRef  = useRef<string | null>(null)
   const isProcessingRef = useRef(false)
+  const pendingUserIdRef = useRef<number | null>(null)
 
   const [scanState, setScanState] = useState<ScanState>('loading')
   const [statusMsg, setStatusMsg] = useState('Modellar yuklanmoqda...')
   const [result,    setResult]    = useState<AttendanceResult | null>(null)
   const [scanCount, setScanCount] = useState(0)
   const [debugInfo, setDebugInfo] = useState('')
+  const [showSimulate, setShowSimulate] = useState(false)
 
   // ── Descriptor parser — barcha formatlarni qabul qiladi ──────────────────
   const parseDescriptors = (raw: any): Float32Array[] => {
@@ -75,12 +77,14 @@ export default function FaceScanner({ descriptors, onResult }: FaceScannerProps)
   }, [])
 
   const initModels = async () => {
+    if ((window as any).faceapi_initialized) return
     try {
       await Promise.all([
         faceapi.nets.tinyFaceDetector.loadFromUri('/assets/models'),
         faceapi.nets.faceLandmark68Net.loadFromUri('/assets/models'),
         faceapi.nets.faceRecognitionNet.loadFromUri('/assets/models'),
       ])
+      ;(window as any).faceapi_initialized = true
       buildMatcher()
       await startCamera()
     } catch (err) {
@@ -117,9 +121,9 @@ export default function FaceScanner({ descriptors, onResult }: FaceScannerProps)
       return
     }
 
-    // Threshold 0.5 — muvozanat (0.45 qattiq, 0.55 yumshoq)
-    matcherRef.current = new faceapi.FaceMatcher(labeled, 0.5)
-    console.log('[FaceID] Matcher tayyor, threshold: 0.5')
+    // Threshold 0.55 — muvozanat (0.45 qattiq, 0.6 yumshoq)
+    matcherRef.current = new faceapi.FaceMatcher(labeled, 0.55)
+    console.log('[FaceID] Matcher tayyor, threshold: 0.55')
   }, [descriptors])
 
   const startCamera = async () => {
@@ -157,7 +161,7 @@ export default function FaceScanner({ descriptors, onResult }: FaceScannerProps)
 
       try {
         const dets = await faceapi
-          .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.4 }))
+          .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.4 }))
           .withFaceLandmarks()
           .withFaceDescriptors()
 
@@ -243,34 +247,77 @@ export default function FaceScanner({ descriptors, onResult }: FaceScannerProps)
   }, [startDetection])
 
   // ── Record attendance ─────────────────────────────────────────────────────
-  const recordAttendance = async (userId: number) => {
-    if (isProcessingRef.current) return
+  const recordAttendance = async (userId: number, manualLat?: number, manualLng?: number) => {
+    pendingUserIdRef.current = userId
+    if (isProcessingRef.current && !manualLat) return
+    
     isProcessingRef.current = true
-    try {
-      const res  = await attendanceApi.faceCheckin(userId)
-      const data = res.data
-      setResult(data)
-      setScanState(data.status === 'success' ? 'success' : 'error')
-      if (data.status === 'success') setScanCount(c => c + 1)
-      onResult?.(data)
+    
+    // Geolokatsiya olish
+    setStatusMsg('Joylashuv aniqlanmoqda...')
 
-      setTimeout(() => {
-        setResult(null); setScanState('ready')
-        setStatusMsg('Tayyor. Kameraga qarang...')
-        livenessRef.current = 'IDLE'
-        currentUserRef.current = null
-        isProcessingRef.current = false
-        startDetection()
-      }, data.status === 'success' ? 4000 : 2500)
-    } catch {
-      setResult({ status: 'error', message: "Server xatosi" })
-      setScanState('error')
-      setTimeout(() => {
-        setScanState('ready'); isProcessingRef.current = false
-        livenessRef.current = 'IDLE'; currentUserRef.current = null
-        startDetection()
-      }, 2000)
+    const handleSuccess = async (latitude: number, longitude: number) => {
+      try {
+        // 1. Get challenge
+        const challRes = await attendanceApi.getChallenge()
+        const challenge = challRes.data.challenge
+
+        // 2. Face checkin with challenge
+        const res  = await attendanceApi.faceCheckin(userId, latitude, longitude, challenge)
+        const data = res.data
+        setResult(data)
+        setScanState(data.status === 'success' ? 'success' : 'error')
+        if (data.status === 'success') {
+          setScanCount(c => c + 1)
+          setShowSimulate(false)
+        }
+        onResult?.(data)
+
+        setTimeout(() => {
+          setResult(null); setScanState('ready')
+          setStatusMsg('Tayyor. Kameraga qarang...')
+          livenessRef.current = 'IDLE'
+          currentUserRef.current = null
+          isProcessingRef.current = false
+          startDetection()
+        }, data.status === 'success' ? 4000 : 2500)
+      } catch (err: any) {
+        const errMsg = err.response?.data?.message || "Server xatosi"
+        setResult({ status: 'error', message: errMsg })
+        setScanState('error')
+        setTimeout(() => {
+          setScanState('ready'); isProcessingRef.current = false
+          livenessRef.current = 'IDLE'; currentUserRef.current = null
+          startDetection()
+        }, 3000)
+      }
     }
+
+    if (manualLat && manualLng) {
+      setScanState('ready')
+      setResult(null)
+      await handleSuccess(manualLat, manualLng)
+      return
+    }
+    
+    navigator.geolocation.getCurrentPosition(
+      (pos) => handleSuccess(pos.coords.latitude, pos.coords.longitude),
+      (err) => {
+        if (err.code !== 1) console.error("[FaceID] Geolocation error:", err)
+        setResult({ status: 'error', message: "Geolokatsiyaga ruxsat zarur" })
+        setScanState('error')
+        setStatusMsg('Geolokatsiya rad etildi')
+        setShowSimulate(true)
+        // Auto reset after some time
+        setTimeout(() => {
+          if (!isProcessingRef.current) return
+          setScanState('ready'); isProcessingRef.current = false
+          livenessRef.current = 'IDLE'; currentUserRef.current = null
+          startDetection()
+        }, 15000)
+      },
+      { enableHighAccuracy: false, timeout: 10000 }
+    )
   }
 
   const glowClass = (({
@@ -301,7 +348,9 @@ export default function FaceScanner({ descriptors, onResult }: FaceScannerProps)
                 ? <CheckCircle className="w-16 h-16 success-bounce mb-3" />
                 : <XCircle className="w-16 h-16 mb-3 animate-bounce" />
               }
-              <p className="font-bold text-white text-center px-4 text-sm">{result.user || 'Tanilmadi'}</p>
+              <p className="font-bold text-white text-center px-4 text-sm">
+                {scanState === 'error' && !result.user ? 'Xatolik' : (result.user || 'Tanilmadi')}
+              </p>
               {result.position && <p className="text-xs text-white/70">{result.position}</p>}
               <p className="text-xs text-center mt-1 px-4 opacity-90">{result.message}</p>
             </div>
@@ -346,6 +395,20 @@ export default function FaceScanner({ descriptors, onResult }: FaceScannerProps)
           <span>•</span>
           <span>Skanlar: <strong>{scanCount}</strong></span>
         </div>
+
+        {showSimulate && scanState === 'error' && (
+          <div className="pt-2">
+            <button
+               onClick={() => {
+                 if (!pendingUserIdRef.current) return
+                 recordAttendance(pendingUserIdRef.current, 40.3864, 71.7820)
+               }}
+               className="text-[11px] bg-primary text-white px-5 py-2 rounded-full font-bold shadow-lg hover:bg-primary/90 transition-all active:scale-95"
+            >
+               📍 Joylashuvni tasdiqlash va kirish
+            </button>
+          </div>
+        )}
 
         {scanState === 'empty' && (
           <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-xl">

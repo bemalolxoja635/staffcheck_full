@@ -71,7 +71,10 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
             )
             send_telegram(admin_chat_id, msg)
 
-        # Notify user if status changed to active
+        # Notify user if important fields changed
+        important_fields = ['phone', 'position', 'status']
+        changed_fields = [f for f in important_fields if f in request.data and str(request.data[f]) != str(getattr(user, f))]
+
         if old_status != 'active' and user.status == 'active' and user.telegram_id:
             user.generate_qr_token()
             send_telegram(
@@ -79,11 +82,11 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
                 f"✅ <b>Tabriklaymiz!</b>\n\n"
                 f"Sizning akkuntingiz tasdiqlandi. Endi tizimdan to'liq foydalanishingiz mumkin."
             )
-        elif user.telegram_id:
+        elif user.telegram_id and changed_fields:
             send_telegram(
                 user.telegram_id,
                 f"📝 <b>Profilingiz yangilandi</b>\n\n"
-                f"Admin tomonidan profilingizga o'zgartirishlar kiritildi."
+                f"Admin tomonidan profilingizdagi quyidagi ma'lumotlar o'zgartirildi: " + ", ".join(changed_fields)
             )
 
         return Response(UserSerializer(user).data)
