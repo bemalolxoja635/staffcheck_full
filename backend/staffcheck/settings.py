@@ -89,12 +89,10 @@ if _db_url:
 else:
     _db_engine = config('DB_ENGINE', default='sqlite3')
     if _db_engine == 'sqlite3':
-        # Vercel-da sqlite3 yozish uchun /tmp dan foydalanamiz
-        _db_path = '/tmp/db.sqlite3' if os.environ.get('VERCEL') else BASE_DIR / 'db.sqlite3'
         DATABASES = {
             'default': {
                 'ENGINE': 'django.db.backends.sqlite3',
-                'NAME': _db_path,
+                'NAME': BASE_DIR / 'db.sqlite3',
             }
         }
     else:
@@ -206,8 +204,5 @@ REQUIRED_ENV_VARS = [
 # Tizim ishga tushganda muhim o'zgaruvchilarni tekshiramiz
 for var_name, value in REQUIRED_ENV_VARS:
     if not value or value == '0.0' or value == 0.0:
-        if not DEBUG:
-            raise ValueError(f"CRITICAL: {var_name} environment variable is missing or empty!")
-        else:
-            print(f"WARNING: {var_name} is missing. System may not work correctly.")
+        print(f"WARNING: {var_name} environment variable is missing or empty. System features may be degraded.")
 

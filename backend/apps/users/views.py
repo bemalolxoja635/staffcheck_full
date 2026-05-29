@@ -58,46 +58,50 @@ class LoginView(APIView):
         responses={200: {"type": "object", "properties": {"access": {"type": "string"}, "refresh": {"type": "string"}, "user": {"type": "object"}}}}
     )
     def post(self, request):
-        ip = get_client_ip(request)
+        try:
+            ip = get_client_ip(request)
 
-        # Brute-force himoya: 15 daqiqada 5 ta xato
-        recent_fails = ActionLog.objects.filter(
-            action='login_fail',
-            ip_address=ip,
-            created_at__gte=timezone.now() - timedelta(minutes=15),
-        ).count()
-        if recent_fails >= 5:
-            return Response(
-                {'error': "Juda ko'p urinish. 15 daqiqadan keyin qayta urining."},
-                status=status.HTTP_429_TOO_MANY_REQUESTS,
-            )
-
-        s = LoginSerializer(data=request.data)
-        if not s.is_valid():
-            ActionLog.objects.create(
+            # Brute-force himoya: 15 daqiqada 5 ta xato
+            recent_fails = ActionLog.objects.filter(
                 action='login_fail',
-                details=f"Failed: {request.data.get('username', '')}",
+                ip_address=ip,
+                created_at__gte=timezone.now() - timedelta(minutes=15),
+            ).count()
+            if recent_fails >= 5:
+                return Response(
+                    {'error': "Juda ko'p urinish. 15 daqiqadan keyin qayta urining."},
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                )
+
+            s = LoginSerializer(data=request.data)
+            if not s.is_valid():
+                ActionLog.objects.create(
+                    action='login_fail',
+                    details=f"Failed: {request.data.get('username', '')}",
+                    ip_address=ip,
+                )
+                errors = s.errors
+                first_error = list(errors.values())[0]
+                msg = first_error[0] if isinstance(first_error, list) else str(first_error)
+                return Response({'error': msg}, status=status.HTTP_400_BAD_REQUEST)
+
+            user    = s.validated_data['user']
+            refresh = RefreshToken.for_user(user)
+
+            ActionLog.objects.create(
+                user=user, action='login',
+                details='Tizimga kirdi',
                 ip_address=ip,
             )
-            errors = s.errors
-            first_error = list(errors.values())[0]
-            msg = first_error[0] if isinstance(first_error, list) else str(first_error)
-            return Response({'error': msg}, status=status.HTTP_400_BAD_REQUEST)
 
-        user    = s.validated_data['user']
-        refresh = RefreshToken.for_user(user)
-
-        ActionLog.objects.create(
-            user=user, action='login',
-            details='Tizimga kirdi',
-            ip_address=ip,
-        )
-
-        return Response({
-            'access':  str(refresh.access_token),
-            'refresh': str(refresh),
-            'user':    UserSerializer(user).data,
-        })
+            return Response({
+                'access':  str(refresh.access_token),
+                'refresh': str(refresh),
+                'user':    UserSerializer(user).data,
+            })
+        except Exception as e:
+            import traceback
+            return Response({'error': str(e), 'traceback': traceback.format_exc()}, status=500)
 
 
 # ── Logout ────────────────────────────────────────────────────────────────────
