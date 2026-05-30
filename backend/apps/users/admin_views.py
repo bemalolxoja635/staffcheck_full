@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.attendance.models import Attendance
-from .models import ActionLog, User
+from .models import ActionLog, User, Task
 from .permissions import IsAdmin
 from .serializers import UserSerializer, UserUpdateSerializer
 from .utils import get_client_ip, send_telegram
@@ -214,3 +214,68 @@ class ActionLogView(generics.ListAPIView):
             'created_at': log.created_at,
         } for log in logs]
         return Response(data)
+# ── Tasks for Admin ───────────────────────────────────────────────────────────
+from .serializers import TaskSerializer
+
+class AdminTaskListView(generics.ListAPIView):
+    serializer_class = TaskSerializer
+    permission_classes = [IsAdmin]
+
+    def get_queryset(self):
+        return Task.objects.all()
+
+class AdminTaskCreateView(APIView):
+    permission_classes = [IsAdmin]
+
+    def post(self, request):
+        title = request.data.get('title')
+        description = request.data.get('description', '')
+        due_date = request.data.get('due_date')
+        priority = request.data.get('priority', 'medium')
+        users_input = request.data.get('users', [])  # list of user ids or 'all'
+
+        if not title:
+            return Response({'error': 'Title is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        target_users = []
+        if users_input == 'all':
+            target_users = list(User.objects.filter(role='user', status='active'))
+        elif isinstance(users_input, list):
+            target_users = list(User.objects.filter(id__in=users_input, role='user'))
+
+        if not target_users:
+            return Response({'error': 'Xodimlar tanlanmadi yoki topilmadi'}, status=status.HTTP_400_BAD_REQUEST)
+
+        tasks_to_create = []
+        for user in target_users:
+            tasks_to_create.append(Task(
+                user=user,
+                title=title,
+                description=description,
+                due_date=due_date,
+                priority=priority
+            ))
+        
+        Task.objects.bulk_create(tasks_to_create)
+
+        ActionLog.objects.create(
+            user=request.user, action='assign_task',
+            details=f"{len(target_users)} ta xodimga yangi vazifa berildi: {title}",
+            ip_address=get_client_ip(request),
+        )
+
+        for user in target_users:
+            if user.telegram_id:
+                msg = (
+                    f"📋 <b>Bugungi kun vazifalari</b>\n\n"
+                    f"📌 <b>Vazifa:</b> {title}\n"
+                )
+                if description:
+                    msg += f"📝 <b>Tavsif:</b> {description}\n"
+                if due_date:
+                    msg += f"⏰ <b>Muddat:</b> {due_date}\n"
+                msg += "\n<i>Vazifani bajargach, platforma orqali belgilashni unutmang. Omad!</i>"
+                send_telegram(user.telegram_id, msg)
+
+        return Response({'message': f"{len(target_users)} ta xodimga vazifa biriktirildi."})
+

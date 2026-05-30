@@ -340,8 +340,9 @@ class TaskUpdateView(APIView):
     def patch(self, request, pk):
         try:
             task = Task.objects.get(pk=pk, user=request.user)
-            task.is_completed = request.data.get('is_completed', task.is_completed)
+            if 'is_completed' in request.data:
+                task.status = 'completed' if request.data['is_completed'] else 'pending'
             task.save()
-            return Response({'status': 'success', 'is_completed': task.is_completed})
+            return Response({'status': 'success', 'is_completed': task.status == 'completed'})
         except Task.DoesNotExist:
             return Response({'error': 'Topilmadi'}, status=status.HTTP_404_NOT_FOUND)

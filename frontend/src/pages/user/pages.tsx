@@ -272,42 +272,57 @@ export function UserDashboard() {
         </div>
 
         {/* Tasks Section */}
-        <Card className="premium-card">
-          <div className="p-5 border-b border-primary/10 flex items-center justify-between">
-             <h2 className="font-bold flex items-center gap-2">
-               <CheckSquare className="w-5 h-5 text-primary" /> Ish rejalari (Tasks)
+        <Card className="premium-card relative overflow-hidden border-2 border-primary/20">
+          <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+             <CheckSquare className="w-32 h-32" />
+          </div>
+          <div className="p-5 border-b border-primary/10 flex items-center justify-between relative z-10">
+             <h2 className="font-extrabold text-lg flex items-center gap-2 dark:glow-4k">
+               <CheckSquare className="w-6 h-6 text-primary moving-icon" /> Bugungi kun vazifalari
              </h2>
           </div>
-          <CardContent className="p-0">
+          <CardContent className="p-0 relative z-10">
             {tasks.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <CheckSquare className="w-10 h-10 mx-auto mb-2 opacity-20" />
-                <p className="text-xs">Sizga hali vazifa biriktirilmagan</p>
+              <div className="text-center py-10 text-muted-foreground">
+                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                  <CheckSquare className="w-8 h-8 text-primary opacity-50" />
+                </div>
+                <p className="text-sm font-medium">Sizga hali vazifa biriktirilmagan</p>
+                <p className="text-[11px] mt-1 opacity-70">Dam oling va ishingizni davom ettiring</p>
               </div>
             ) : (
               <div className="divide-y divide-primary/5">
                 {tasks.map(task => (
-                  <div key={task.id} className="p-4 flex items-start gap-4 hover:bg-primary/5 transition-colors">
-                    <input 
-                      type="checkbox" 
-                      className="mt-1 w-4 h-4 rounded border-primary text-primary focus:ring-primary"
-                      checked={task.is_completed}
-                      onChange={(e) => toggleTask(task.id, e.target.checked)}
-                    />
+                  <div key={task.id} className="p-5 flex items-start gap-4 hover:bg-primary/5 transition-colors group">
+                    <div className="relative flex items-center mt-0.5">
+                      <input 
+                        type="checkbox" 
+                        className="peer relative appearance-none w-5 h-5 border-2 border-primary/30 rounded-md checked:bg-primary checked:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer transition-all shrink-0"
+                        checked={task.is_completed}
+                        onChange={(e) => toggleTask(task.id, e.target.checked)}
+                      />
+                      <CheckSquare className="w-3.5 h-3.5 text-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity" />
+                    </div>
                     <div className="flex-1">
-                      <p className={`font-bold text-sm ${task.is_completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                      <p className={`font-bold text-[15px] leading-tight ${task.is_completed ? 'line-through text-muted-foreground opacity-70' : 'text-foreground'}`}>
                         {task.title}
                       </p>
                       {task.description && (
-                        <p className={`text-xs mt-1 ${task.is_completed ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}>
+                        <p className={`text-[13px] mt-1.5 leading-relaxed ${task.is_completed ? 'text-muted-foreground/40' : 'text-muted-foreground/80'}`}>
                           {task.description}
                         </p>
                       )}
-                      {task.deadline && !task.is_completed && (
-                        <span className="inline-block mt-2 text-[10px] bg-destructive/10 text-destructive px-2 py-0.5 rounded-full font-bold">
-                          Muddat: {formatTime(task.deadline)}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-3 mt-3">
+                        {task.deadline && !task.is_completed && (
+                          <span className="inline-flex items-center gap-1 text-[10px] bg-destructive/10 border border-destructive/20 text-destructive px-2 py-0.5 rounded-full font-bold">
+                            <Clock className="w-3 h-3" />
+                            To: {formatTime(task.deadline).slice(11, 16) || formatTime(task.deadline).slice(0, 10)}
+                          </span>
+                        )}
+                        <Badge variant={task.is_completed ? 'info' : 'default'} className="text-[9px] px-1.5 py-0 uppercase tracking-widest">
+                          {task.is_completed ? 'Bajarilgan' : 'Jarayonda'}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
                 ))}

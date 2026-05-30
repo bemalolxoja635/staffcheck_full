@@ -15,6 +15,7 @@ import AIChat from '@/components/ai/AIChat'
 const navItems = [
   { to: '/admin',            icon: LayoutDashboard, label: 'Dashboard',  end: true },
   { to: '/admin/users',      icon: Users,            label: 'Xodimlar'           },
+  { to: '/admin/work-plan',  icon: LayoutDashboard,  label: 'Ish Rejalar'        },
   { to: '/admin/attendance', icon: Clock,            label: 'Davomat'            },
   { to: '/admin/analytics',  icon: BarChart3,        label: 'Tahlil'             },
   { to: '/admin/monitor',    icon: Monitor,          label: 'Monitor'            },

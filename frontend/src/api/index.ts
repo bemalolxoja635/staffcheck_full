@@ -63,6 +63,12 @@ export const usersApi = {
 
   logs: () =>
     client.get('/api/users/logs/'),
+
+  getTasks: () =>
+    client.get<Task[]>('/api/users/tasks/'),
+
+  createTask: (data: { title: string; description?: string; due_date?: string; priority?: string; users: number[] | 'all' }) =>
+    client.post('/api/users/tasks/create/', data),
 }
 
 // ── Attendance ────────────────────────────────────────────────────────────────

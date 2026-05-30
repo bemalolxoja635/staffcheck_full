@@ -1,0 +1,8 @@
+frontend/
+node_modules/
+backend/venv*/
+backend/.venv*/
+.git/
+StaffCheckMobile/
+*.sqlite3
+__pycache__/

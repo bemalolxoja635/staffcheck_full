@@ -3,6 +3,7 @@ from .admin_views import (
     UserListView, UserDetailView,
     ApproveUserView, BanUserView,
     AdminStatsView, ActionLogView,
+    AdminTaskListView, AdminTaskCreateView,
 )
 
 urlpatterns = [
@@ -12,4 +13,6 @@ urlpatterns = [
     path('<int:pk>/ban/',     BanUserView.as_view(),     name='user-ban'),
     path('stats/',         AdminStatsView.as_view(), name='admin-stats'),
     path('logs/',          ActionLogView.as_view(),  name='action-logs'),
+    path('tasks/',         AdminTaskListView.as_view(), name='admin-tasks-list'),
+    path('tasks/create/',  AdminTaskCreateView.as_view(), name='admin-tasks-create'),
 ]

@@ -115,6 +115,12 @@ class ChangePasswordSerializer(serializers.Serializer):
 
 # ── Tasks ───────────────────────────────────────────────────────────────────
 class TaskSerializer(serializers.ModelSerializer):
+    is_completed = serializers.SerializerMethodField()
+    deadline = serializers.DateTimeField(source='due_date', required=False, allow_null=True)
+
     class Meta:
         model  = Task
-        fields = '__all__'
+        fields = ['id', 'user', 'title', 'description', 'status', 'priority', 'due_date', 'created_at', 'updated_at', 'is_completed', 'deadline']
+
+    def get_is_completed(self, obj):
+        return obj.status == 'completed'

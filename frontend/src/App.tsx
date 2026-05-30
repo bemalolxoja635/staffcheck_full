@@ -21,6 +21,7 @@ import {
   AttendancePage, AnalyticsPage, MonitorPage,
   SettingsPage, FaceRegisterPage,
 } from '@/pages/admin/pages'
+import { WorkPlanPage } from '@/pages/admin/WorkPlan'
 
 // User pages
 import { UserDashboard, UserProfile } from '@/pages/user/pages'
@@ -66,6 +67,7 @@ export default function App() {
           <Route index                 element={<Dashboard />} />
           <Route path="users"          element={<Users />} />
           <Route path="users/:id/face" element={<FaceRegisterPage />} />
+          <Route path="work-plan"      element={<WorkPlanPage />} />
           <Route path="attendance"     element={<AttendancePage />} />
           <Route path="analytics"      element={<AnalyticsPage />} />
           <Route path="monitor"        element={<MonitorPage />} />
