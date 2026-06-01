@@ -6,3 +6,6 @@ backend/.venv*/
 StaffCheckMobile/
 *.sqlite3
 __pycache__/
+*.zip
+package.json
+package-lock.json

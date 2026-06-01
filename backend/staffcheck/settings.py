@@ -89,10 +89,23 @@ if _db_url:
 else:
     _db_engine = config('DB_ENGINE', default='sqlite3')
     if _db_engine == 'sqlite3':
+        is_vercel = os.environ.get('VERCEL') == '1'
+        if is_vercel:
+            import shutil
+            db_path = '/tmp/db.sqlite3'
+            original_db = BASE_DIR / 'db.sqlite3'
+            if not os.path.exists(db_path) and original_db.exists():
+                shutil.copy(original_db, db_path)
+            elif not os.path.exists(db_path):
+                # If there's no original DB, ensure we have an empty one
+                pass
+        else:
+            db_path = BASE_DIR / 'db.sqlite3'
+
         DATABASES = {
             'default': {
                 'ENGINE': 'django.db.backends.sqlite3',
-                'NAME': BASE_DIR / 'db.sqlite3',
+                'NAME': db_path,
             }
         }
     else:
@@ -149,10 +162,10 @@ SIMPLE_JWT = {
 # ── CORS ──────────────────────────────────────────────────────────────────────
 CORS_ALLOWED_ORIGINS = config(
     'CORS_ORIGINS',
-    default='http://localhost:3000,http://localhost:5173'
+    default='http://localhost:3000,http://localhost:5173,https://staffcheck-full.vercel.app,https://staffcheck-full-8zhanic04-bemalolxoja00q-9229s-projects.vercel.app'
 ).split(',')
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_ALL_ORIGINS = config('DEBUG', default=True, cast=bool)
+CORS_ALLOW_ALL_ORIGINS = True  # Auto-allow based on user request
 
 # Security hardening
 SECURE_HSTS_SECONDS = 31536000  # 1 year
@@ -173,14 +186,21 @@ USE_TZ = False
 # ── Static & Media ────────────────────────────────────────────────────────────
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-WHITENOISE_ROOT = BASE_DIR.parent / 'frontend' / 'dist'
+
+frontend_dist = BASE_DIR.parent / 'frontend' / 'dist'
+if frontend_dist.exists():
+    WHITENOISE_ROOT = frontend_dist
+    STATICFILES_DIRS = [
+        frontend_dist / 'assets',
+        BASE_DIR.parent / 'frontend' / 'public',
+    ]
+else:
+    WHITENOISE_ROOT = STATIC_ROOT
+    STATICFILES_DIRS = []
+
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-STATICFILES_DIRS = [
-    BASE_DIR.parent / 'frontend' / 'dist' / 'assets',
-    BASE_DIR.parent / 'frontend' / 'public',
-]
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

@@ -373,7 +373,15 @@ export function FaceRegisterPage() {
       setSaved(true)
       setTimeout(() => navigate('/admin/users'), 2000)
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Xatolik yuz berdi')
+      const data = err.response?.data;
+      let msg = 'Xatolik yuz berdi';
+      if (data) {
+        if (typeof data.error === 'string') msg = data.error;
+        else if (data.error?.message) msg = data.error.message;
+        else if (typeof data.message === 'string') msg = data.message;
+        else if (typeof data.detail === 'string') msg = data.detail;
+      }
+      setError(msg);
     } finally {
       setLoading(false)
     }

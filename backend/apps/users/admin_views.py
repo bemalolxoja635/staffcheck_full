@@ -231,6 +231,8 @@ class AdminTaskCreateView(APIView):
         title = request.data.get('title')
         description = request.data.get('description', '')
         due_date = request.data.get('due_date')
+        if not due_date:
+            due_date = None
         priority = request.data.get('priority', 'medium')
         users_input = request.data.get('users', [])  # list of user ids or 'all'
 

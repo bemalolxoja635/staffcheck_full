@@ -90,11 +90,23 @@ export default function Register() {
       setSuccess("Muvaffaqiyatli ro'yxatdan o'tdingiz! Admin tasdiqlashini kuting.")
       setTimeout(() => navigate('/login'), 3000)
     } catch (err: any) {
-      const data = err.response?.data
+      const data = err.response?.data;
+      let msg = 'Xatolik yuz berdi';
       if (data) {
-        const msg = Object.values(data).flat()[0] as string
-        setError(msg || 'Xatolik yuz berdi')
+        if (typeof data === 'string') msg = data;
+        else if (data.message && typeof data.message === 'string') msg = data.message;
+        else if (data.error && typeof data.error === 'string') msg = data.error;
+        else {
+           const vals = Object.values(data).flat();
+           if (vals.length > 0) {
+             if (typeof vals[0] === 'string') msg = vals[0];
+             else if (typeof vals[0] === 'object' && vals[0] !== null) {
+               msg = (vals[0] as any).message || (vals[0] as any).code || JSON.stringify(vals[0]);
+             }
+           }
+        }
       }
+      setError(msg);
     } finally {
       setLoading(false)
     }

@@ -12,4 +12,11 @@ from django.core.wsgi import get_wsgi_application
 # Ensure correct settings are used
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "staffcheck.settings")
 
-app = get_wsgi_application()
+try:
+    app = get_wsgi_application()
+except Exception as e:
+    import traceback
+    err_msg = traceback.format_exc()
+    def app(environ, start_response):
+        start_response('500 Internal Server Error', [('Content-Type', 'text/plain')])
+        return [err_msg.encode('utf-8')]
