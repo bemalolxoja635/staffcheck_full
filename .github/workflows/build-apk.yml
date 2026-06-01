@@ -1,44 +1,33 @@
-name: Build Flutter APK
+name: Build & Submit
 
 on:
   push:
-    branches:
-      - main
-      - master
-  workflow_dispatch:
+    branches: [main]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Java
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'zulu'
-        java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
-    - name: Set up Flutter
-      uses: subosito/flutter-action@v2
-      with:
-        channel: 'stable'
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
 
-    - name: Install Dependencies
-      working-directory: ./staffcheck_flutter_app
-      run: |
-        flutter create .
-        flutter pub get
-        flutter pub run flutter_launcher_icons
+      - name: Install dependencies
+        working-directory: ./StaffCheckMobile
+        run: npm install
 
-    - name: Build APK
-      working-directory: ./staffcheck_flutter_app
-      run: flutter build apk --release
+      # Test APK (preview)
+      - name: Build APK via EAS
+        working-directory: ./StaffCheckMobile
+        run: eas build --platform android --profile preview --non-interactive
 
-    - name: Upload APK Release
-      uses: actions/upload-artifact@v4
-      with:
-        name: staffcheck_app_apk
-        path: staffcheck_flutter_app/build/app/outputs/flutter-apk/app-release.apk
+      # Play Store uchun (production)
+      # - run: eas build --platform android --profile production --non-interactive
+      # - run: eas submit --platform android --profile production --non-interactive
