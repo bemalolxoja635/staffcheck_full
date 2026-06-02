@@ -1,0 +1,38 @@
+[
+  {
+    "id": "dda4ab9b-379e-4789-b750-92fe034864aa",
+    "status": "IN_QUEUE",
+    "platform": "ANDROID",
+    "artifacts": {},
+    "fingerprint": {
+      "id": "019e843f-a60e-78fe-9db4-ce8e40ee6abe",
+      "hash": "79954acdeed59f10363aad2330886319fb856012"
+    },
+    "initiatingActor": {
+      "id": "a285c1c2-a685-45c3-8db0-31d73426e9da",
+      "displayName": "Github Actions"
+    },
+    "logFiles": [],
+    "project": {
+      "id": "1cfc3331-35d2-404c-baa4-2858ba0beccb",
+      "name": "StaffCheck",
+      "slug": "staffcheck",
+      "ownerAccount": {
+        "id": "d12848b4-a72d-42f6-a9f1-2c5aef0ebab1",
+        "name": "abdulhayevs-organization"
+      }
+    },
+    "distribution": "STORE",
+    "buildProfile": "preview",
+    "sdkVersion": "52.0.0",
+    "appVersion": "1.0.0",
+    "appBuildVersion": "1",
+    "gitCommitHash": "24bcd7809fa5811a1f3004695deceb22f7740243",
+    "gitCommitMessage": "chore: trigger EAS build after token setup",
+    "priority": "NORMAL",
+    "createdAt": "2026-06-01T17:33:43.725Z",
+    "updatedAt": "2026-06-01T17:33:47.208Z",
+    "expirationDate": "2026-07-01T17:33:44.217Z",
+    "isForIosSimulator": false
+  }
+]

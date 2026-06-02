@@ -1,0 +1,40 @@
+[
+  {
+    "id": "dda4ab9b-379e-4789-b750-92fe034864aa",
+    "status": "IN_PROGRESS",
+    "platform": "ANDROID",
+    "artifacts": {},
+    "fingerprint": {
+      "id": "019e843f-a60e-78fe-9db4-ce8e40ee6abe",
+      "hash": "79954acdeed59f10363aad2330886319fb856012"
+    },
+    "initiatingActor": {
+      "id": "a285c1c2-a685-45c3-8db0-31d73426e9da",
+      "displayName": "Github Actions"
+    },
+    "logFiles": [
+      "https://storage.googleapis.com/eas-workflows-production/logs/1cfc3331-35d2-404c-baa4-2858ba0beccb/dda4ab9b-379e-4789-b750-92fe034864aa/2026-06-01T18%3A51%3A31Z-ba787457-7d1e-4fb6-a5d8-0d8ce823ae17.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260601%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260601T185921Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=abe25522d8791960dfb9d65d9c3dbca4c4d97c150d225170fe22b7e8e1d10058aff18045e56377347badbda794ce081d6dffa4cb92558407444be308ece5c26159659278ee181140da2e575a33a19d9bb0acde1b513aa8d8b651a82e687bd4df29ced5101a065c407baff0fbbbee084972bf4fe902188148f2a8586c6fae654e301a9b670830a0b741a6caf5b64109d67626124e64e173a723f1c61d251e9d2028fbd0681176009a79eb8e3b8dd5baab7f21004753df2615fe89e1200ee3fc694ffc4448896e6f4fa97117fe23128d42286674ec84f1f4feb5ce0b256696abfae9d31e720b04695d38d1a3091fc38216f84cef25342020fab51de6e891a1786b"
+    ],
+    "project": {
+      "id": "1cfc3331-35d2-404c-baa4-2858ba0beccb",
+      "name": "StaffCheck",
+      "slug": "staffcheck",
+      "ownerAccount": {
+        "id": "d12848b4-a72d-42f6-a9f1-2c5aef0ebab1",
+        "name": "abdulhayevs-organization"
+      }
+    },
+    "distribution": "STORE",
+    "buildProfile": "preview",
+    "sdkVersion": "52.0.0",
+    "appVersion": "1.0.0",
+    "appBuildVersion": "1",
+    "gitCommitHash": "24bcd7809fa5811a1f3004695deceb22f7740243",
+    "gitCommitMessage": "chore: trigger EAS build after token setup",
+    "priority": "NORMAL",
+    "createdAt": "2026-06-01T17:33:43.725Z",
+    "updatedAt": "2026-06-01T18:51:35.705Z",
+    "expirationDate": "2026-07-01T17:33:44.217Z",
+    "isForIosSimulator": false
+  }
+]
