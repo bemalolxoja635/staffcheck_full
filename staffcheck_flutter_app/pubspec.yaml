@@ -10,26 +10,50 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.6
-  http: ^1.2.0
+  cupertino_icons: ^1.0.8
+
+  # Tarmoq
+  http: ^1.2.2
+
+  # State management
   provider: ^6.1.2
+
+  # UI
   google_fonts: ^6.2.1
-  flutter_secure_storage: ^9.0.0
-  mobile_scanner: ^5.0.0
-  geolocator: ^11.0.0
-  google_mlkit_face_detection: ^0.10.0
-  fl_chart: ^0.68.0
-  intl: ^0.19.0 # Sana va vaqt formatlash uchun
-  shared_preferences: ^2.2.3
-  local_auth: ^2.2.0
-  url_launcher: ^6.2.0
+  fl_chart: ^0.69.0
+
+  # Xavfsiz saqlash (JWT token)
+  flutter_secure_storage: ^9.2.2
+
+  # QR skaner (mobile_scanner - vision camera bilan emas)
+  mobile_scanner: ^5.2.3
+
+  # Joylashuv
+  geolocator: ^13.0.1
+
+  # Yuz aniqlash (MLKit)
+  google_mlkit_face_detection: ^0.11.0
+
+  # Sana/vaqt formatlash
+  intl: ^0.19.0
+
+  # Kichik sozlamalar saqlash
+  shared_preferences: ^2.3.2
+
+  # Biometrik
+  local_auth: ^2.3.0
+
+  # URL ochish (Telegram bot)
+  url_launcher: ^6.3.0
+
+  # QR kod ko'rsatish
   qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
-  flutter_launcher_icons: ^0.13.1
+  flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.1
 
 flutter:
   uses-material-design: true
@@ -40,4 +64,4 @@ flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
   image_path: "assets/icon.png"
-  min_sdk_android: 21
+  min_sdk_android: 26

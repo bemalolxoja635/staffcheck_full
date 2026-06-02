@@ -12,106 +12,154 @@ class QRScannerScreen extends StatefulWidget {
 }
 
 class _QRScannerScreenState extends State<QRScannerScreen> {
-  final MobileScannerController controller = MobileScannerController(
-    detectionSpeed: DetectionSpeed.normal,
-    facing: CameraFacing.front,
-    torchEnabled: false,
-  );
-  
+  late final MobileScannerController controller;
   final ApiService _apiService = ApiService();
   bool _isProcessing = false;
+  bool _flashOn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = MobileScannerController(
+      detectionSpeed: DetectionSpeed.normal,
+      facing: CameraFacing.back, // TUZATILDI: Orqa kamera QR uchun to'g'riroq
+      torchEnabled: false,
+    );
+  }
 
   Future<Position?> _getCurrentLocation() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    // Joylashuv xizmatini tekshirish
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lokatsiya xizmati faol emas.')));
+      _showSnack('GPS o\'chirilgan. Sozlamalarga o\'ting.', isError: true);
       return null;
     }
 
-    permission = await Geolocator.checkPermission();
+    LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lokatsiyaga ruxsat berilmadi.')));
-        return null;
-      }
     }
-    
-    if (permission == LocationPermission.deniedForever) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lokatsiya butunlay man etilgan.')));
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      _showSnack('Joylashuv ruxsati berilmadi.', isError: true);
       return null;
     }
 
-    return await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+    try {
+      return await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
+      );
+    } catch (e) {
+      return null; // Lokatsiya olinmasa ham davomat saqlaymiz (lat/lng = 0)
+    }
+  }
+
+  void _showSnack(String message, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   void _onDetect(BarcodeCapture capture) async {
-    final List<Barcode> barcodes = capture.barcodes;
-    if (_isProcessing || barcodes.isEmpty) return;
-    
+    if (_isProcessing || capture.barcodes.isEmpty) return;
+    final rawValue = capture.barcodes.first.rawValue;
+    if (rawValue == null || rawValue.isEmpty) return;
+
     setState(() => _isProcessing = true);
-    final String code = barcodes.first.rawValue ?? '---';
-    
-    // Position checks (Geofencing constraint)
-    Position? position = await _getCurrentLocation();
-    
-    double lat = position?.latitude ?? 0.0;
-    double lng = position?.longitude ?? 0.0;
+
+    // Joylashuvni olish
+    final position = await _getCurrentLocation();
+    final lat = position?.latitude ?? 0.0;
+    final lng = position?.longitude ?? 0.0;
 
     try {
       final response = await _apiService.post('/attendance/qr/', {
-        'qr_token': code,
+        'qr_token': rawValue,
         'lat': lat,
         'lng': lng,
       });
 
-      if (mounted) {
-        if (response.statusCode == 200 || response.statusCode == 201) {
-           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Davomat muvaffaqiyatli saqlandi!'), backgroundColor: Colors.green));
-        } else {
-           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Xatolik: ${response.statusCode}'), backgroundColor: Colors.red));
-        }
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        _showSnack('✅ Davomat muvaffaqiyatli saqlandi!');
+      } else if (response.statusCode == 400) {
+        _showSnack('❌ Noto\'g\'ri QR kod yoki davomat allaqachon belgilangan.', isError: true);
+      } else if (response.statusCode == 403) {
+        _showSnack('❌ Siz bu joydan davomatzlatira olmaysiz (Geofencing).', isError: true);
+      } else {
+        _showSnack('❌ Xatolik: ${response.statusCode}', isError: true);
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Tarmoq xatosi: $e'), backgroundColor: Colors.red));
-      }
+      _showSnack('❌ ${e.toString().replaceFirst('Exception: ', '')}', isError: true);
     }
 
-    // Prevents double scanning rapidly
+    // 3 soniya kutib qayta skanerlash
     await Future.delayed(const Duration(seconds: 3));
-    if (mounted) {
-       setState(() => _isProcessing = false);
-    }
+    if (mounted) setState(() => _isProcessing = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('QR Skaner (Qorovullik)'),
-        backgroundColor: AppConstants.primaryColor,
+        title: const Text('QR Skaner'),
+        backgroundColor: Colors.black,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: Icon(_flashOn ? Icons.flash_on : Icons.flash_off),
+            onPressed: () {
+              controller.toggleTorch();
+              setState(() => _flashOn = !_flashOn);
+            },
+            tooltip: 'Chiroq',
+          ),
+        ],
       ),
       body: Stack(
         children: [
-          MobileScanner(
-            controller: controller,
-            onDetect: _onDetect,
+          // Kamera oynasi
+          MobileScanner(controller: controller, onDetect: _onDetect),
+
+          // Markerli ramka
+          Center(
+            child: Container(
+              width: 260,
+              height: 260,
+              decoration: BoxDecoration(
+                border: Border.all(color: AppConstants.primaryColor, width: 3),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Center(
+                child: Text(
+                  'QR kodni ramka ichiga joylashtiring',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+              ),
+            ),
           ),
+
+          // Yuklanish holati
           if (_isProcessing)
             Container(
-              color: Colors.black45,
+              color: Colors.black54,
               child: const Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     CircularProgressIndicator(color: Colors.white),
                     SizedBox(height: 16),
-                    Text('Davomat ishlanmoqda...', style: TextStyle(color: Colors.white)),
+                    Text(
+                      'Davomat saqlanmoqda...',
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
                   ],
                 ),
               ),

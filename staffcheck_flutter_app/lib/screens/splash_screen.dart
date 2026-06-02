@@ -15,7 +15,8 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
@@ -24,70 +25,78 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     super.initState();
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 2),
+      duration: const Duration(milliseconds: 1500),
     );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(_animationController);
-
+    _fadeAnimation =
+        Tween<double>(begin: 0.0, end: 1.0).animate(_animationController);
     _animationController.forward();
 
-    _initializeApp();
+    // initState dan to'g'ridan-to'g'ri Future chaqirib bo'lmaydi,
+    // addPostFrameCallback ishlatildi
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeApp();
+    });
   }
 
   Future<void> _initializeApp() async {
-    // Kichik pauza (logoni ko'rsatish uchun)
     await Future.delayed(const Duration(seconds: 2));
-    
     if (!mounted) return;
-    
-    // Login holatini tekshirish
+
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     await authProvider.checkLoginStatus();
-
     if (!mounted) return;
 
     if (!authProvider.isAuthenticated) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
+      _goToLogin();
       return;
     }
 
-    // Biometrik tekshiruv
-    final LocalAuthentication auth = LocalAuthentication();
-    bool authenticated = false;
-    try {
-      final bool canAuthenticateWithBiometrics = await auth.canCheckBiometrics;
-      final bool canAuthenticate = canAuthenticateWithBiometrics || await auth.isDeviceSupported();
-      
-      if (canAuthenticate) {
-        authenticated = await auth.authenticate(
-          localizedReason: 'Ilovaga kirish uchun barmoq izingizni yoki yuzingizni tasdiqlang',
-          options: const AuthenticationOptions(
-            stickyAuth: true,
-            biometricOnly: false,
-          ),
-        );
-      } else {
-        authenticated = true; // Agar qurilma qo'llab-quvvatlamasa, shunchaki kirishga ruxsat berish
-      }
-    } on PlatformException catch (e) {
-      print("Biometrik xatolik: $e");
-      authenticated = true; // Xatolik bo'lsa parolsiz o'tkazaveramiz yoki login screen ga qaytaramiz
-    }
-
+    // Biometrik tekshiruv (ixtiyoriy)
+    bool authenticated = await _checkBiometrics();
     if (!mounted) return;
 
     if (authenticated) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
+      _goToHome();
     } else {
-      // Bekor qilinsa login screenga o'tadi
       await authProvider.logout();
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
+      _goToLogin();
     }
+  }
+
+  Future<bool> _checkBiometrics() async {
+    final LocalAuthentication auth = LocalAuthentication();
+    try {
+      final bool canCheck = await auth.canCheckBiometrics;
+      final bool isSupported = await auth.isDeviceSupported();
+
+      if (!canCheck && !isSupported) return true; // Qurilma qo'llab-quvvatlamasa o'tkazib yuboramiz
+
+      return await auth.authenticate(
+        localizedReason:
+            'Ilovaga kirish uchun barmoq izingizni yoki yuzingizni tasdiqlang',
+        options: const AuthenticationOptions(
+          stickyAuth: true,
+          biometricOnly: false,
+        ),
+      );
+    } on PlatformException catch (e) {
+      debugPrint('Biometrik xatolik: $e');
+      return true; // Xatolik bo'lsa parolsiz o'tkazaveramiz
+    }
+  }
+
+  void _goToLogin() {
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+    );
+  }
+
+  void _goToHome() {
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
+    );
   }
 
   @override
@@ -106,11 +115,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: const [
-              Icon(
-                Icons.check_circle_outline,
-                size: 100,
-                color: Colors.white,
-              ),
+              Icon(Icons.check_circle_outline, size: 100, color: Colors.white),
               SizedBox(height: 20),
               Text(
                 'StaffCheck',
@@ -124,10 +129,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               SizedBox(height: 10),
               Text(
                 'Xodimlar boshqaruvi tizimi',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.white70,
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.white70),
+              ),
+              SizedBox(height: 48),
+              CircularProgressIndicator(
+                color: Colors.white54,
+                strokeWidth: 2,
               ),
             ],
           ),
