@@ -17,7 +17,6 @@
     },
     "android": {
       "package": "com.staffcheck.app",
-      "minSdkVersion": 26,
       "permissions": [
         "CAMERA",
         "RECORD_AUDIO",
@@ -40,7 +39,15 @@
           "locationAlwaysAndWhenInUsePermission": "Davomat uchun joylashuv kerak"
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26
+          }
+        }
+      ]
     ],
     "web": {
       "favicon": "./assets/favicon.png"
